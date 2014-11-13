@@ -6,6 +6,7 @@ from __future__ import print_function, unicode_literals
 from itertools import chain
 import json
 from subprocess import call
+import sys
 
 from docker import Client
 from six import (
@@ -14,7 +15,6 @@ from six import (
     itervalues,
     text_type,
 )
-from six.moves import map
 
 from IPython.utils.py3compat import string_types
 
@@ -29,24 +29,19 @@ from IPython.utils.traitlets import (
     TraitError,
 )
 
+from .py3compat_utils import strict_map
+
 
 def print_build_output(build_output):
     success = True
     for raw_message in build_output:
         message = json.loads(raw_message)
         try:
-            print(message['stream'])
+            print(message['stream'], end="")
         except KeyError:
             success = False
             print(message['error'])
     return success
-
-
-def strict_map(func, iterable):
-    """
-    Python 2/3-agnostic strict map.
-    """
-    return list(map(func, iterable))
 
 
 def scalar(l):
@@ -88,7 +83,7 @@ class Container(HasTraits):
     def _name_default(self):
         return self.image + '-running'
 
-    build_path = Unicode(default=None)
+    build_path = Unicode()
 
     links = List(Instance(__name__ + '.Link'))
 
@@ -165,16 +160,22 @@ class Container(HasTraits):
             self._client = Client()
         return self._client
 
-    def build(self, tag=None):
+    def build(self, tag=None, display=True):
         """
         Build the container.
+
+        If display is True, write build output to stdout.  Otherwise return it
+        as a generator.
         """
-        return print_build_output(
-            self.client.build(
-                self.build_path,
-                self.full_imagename(tag=tag),
-            )
+        output = self.client.build(
+            self.build_path,
+            self.full_imagename(tag=tag),
         )
+        if display:
+            print_build_output(output)
+            return None
+        else:
+            return list(output)
 
     def run(self, command=None, tag=None, attach=False):
         """
@@ -243,6 +244,23 @@ class Container(HasTraits):
         return self.client.inspect_container(
             self.name,
         )
+
+    def images(self):
+        """
+        Return any images matching our current organization/name.
+
+        Does not filter by tag.
+        """
+        return self.client.images(self.full_imagename().split(':')[0])
+
+    def remove_images(self):
+        """
+        Remove any images matching our current organization/name.
+
+        Does not filter by tag.
+        """
+        for image in self.images():
+            self.client.remove_image(image)
 
     def logs(self, all=False):
         cont = self.instances(all=all)

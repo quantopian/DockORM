@@ -5,6 +5,10 @@ from docker.errors import APIError
 from pytest import raises
 from six import iteritems
 
+from .conftest import (
+    TEST_ORG,
+    TEST_TAG,
+)
 from ..container import scalar, Container
 
 
@@ -35,8 +39,8 @@ def test_container_run(busybox):
         instance,
         {
             'Command': 'false',
-            'Names': ['/busybox-dockorm-testing'],
-            'Image': 'busybox:latest',
+            'Names': ['/busybox-running'],
+            'Image': '{}/{}:{}'.format(TEST_ORG, 'busybox', TEST_TAG)
         }
     )
 
@@ -105,3 +109,26 @@ def test_container_purge(busybox):
     with raises(APIError) as e:
         val = busybox.inspect()
     assert e.value.response.status_code == 404
+
+
+def test_container_build_remove(busybox, capsys):
+    # Ensure that we actually do a build.
+    busybox.remove_images()
+
+    output = busybox.build()
+    stdout, stderr = capsys.readouterr()
+
+    # NOTE: docker-py drops the first line of normal build output.
+    assert stderr == ''
+    stdout = stdout.splitlines()
+    assert stdout[1] == 'Step 1 : RUN echo testing'
+    assert stdout[3] == 'testing'
+    assert stdout[5].startswith('Successfully built')
+
+    image = scalar(busybox.images())
+    assert image['RepoTags'] == [
+        '{}/{}:{}'.format(TEST_ORG, 'busybox', TEST_TAG)
+    ]
+
+    busybox.remove_images()
+    assert busybox.images() == []
