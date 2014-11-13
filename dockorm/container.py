@@ -64,7 +64,7 @@ class Container(HasTraits):
     organization = Unicode()
 
     def _organization_changed(self, name, old, new):
-        if organization and not organization.endswith('/'):
+        if new and not new.endswith('/'):
             self.organization = new + '/'
 
     image = Unicode()
