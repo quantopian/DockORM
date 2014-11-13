@@ -4,6 +4,7 @@ Container class.
 """
 from __future__ import print_function, unicode_literals
 from itertools import chain
+import json
 from subprocess import call
 
 from docker import Client
