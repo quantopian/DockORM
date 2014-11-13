@@ -164,14 +164,14 @@ class Container(HasTraits):
             self._client = Client()
         return self._client
 
-    def build(self):
+    def build(self, tag=None):
         """
         Build the container.
         """
         return print_build_output(
             self.client.build(
                 self.build_path,
-                self.full_imagename(),
+                self.full_imagename(tag=tag),
             )
         )
 
