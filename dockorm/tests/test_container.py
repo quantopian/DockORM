@@ -90,7 +90,7 @@ def test_container_logs(busybox):
     checked_join(busybox)
 
     logs = scalar(busybox.logs(all=True))
-    validate_dict(logs, {'Logs': 'foo\n'})
+    validate_dict(logs, {'Logs': b'foo\n'})
 
 
 def test_container_purge(busybox):
