@@ -97,6 +97,24 @@ def test_container_logs(busybox):
     validate_dict(logs, {'Logs': b'foo\n'})
 
 
+def test_container_environment(busybox):
+    busybox.environment = {'FOO': 'foo'}
+    busybox.run(
+        ['env']
+    )
+    results = checked_join(busybox)
+
+    env_dict = {
+        pair[0]: pair[1] for pair in
+        (
+            message.split(b'=') for message in
+            scalar(busybox.logs(all=True))['Logs'].splitlines()
+        )
+    }
+
+    validate_dict(env_dict, {b'FOO': b'foo'})
+
+
 def test_container_purge(busybox):
     busybox.run(['true'])
     details = checked_join(busybox)

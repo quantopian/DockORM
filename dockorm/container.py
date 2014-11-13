@@ -148,6 +148,8 @@ class Container(HasTraits):
             out[key] = value
         return out
 
+    environment = Dict()
+
     # This should really be something like:
     # Either(Instance(str), List(Instance(str)))
     command = Any()
@@ -189,6 +191,7 @@ class Container(HasTraits):
             stdin_open=attach,
             tty=attach,
             command=command,
+            environment=self.environment,
         )
 
         self.client.start(
