@@ -188,6 +188,7 @@ class Container(HasTraits):
             name=self.name,
             ports=self.open_container_ports,
             volumes=self.volume_mount_points,
+            detach=not attach,
             stdin_open=attach,
             tty=attach,
             command=command,
@@ -200,6 +201,9 @@ class Container(HasTraits):
             port_bindings=self.ports,
             links=self.format_links(),
         )
+
+        if attach:
+            call(['docker', 'attach', self.name])
 
     def _matches(self, container):
         return '/' + self.name in container['Names']
