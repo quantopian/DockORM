@@ -273,10 +273,9 @@ class Container(HasTraits):
             self.client.remove_image(image)
 
     def logs(self, all=False):
-        cont = self.instances(all=all)
         return [
             {
-                'Id': container['Id'],
+                'Id': container,
                 'Logs': self.client.logs(container)
             }
             for container in self.instances(all=all)
