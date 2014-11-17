@@ -50,7 +50,7 @@ def busybox(request):
     return bb
 
 
-@fixture(autouse=True)
+@fixture(scope='session', autouse=True)
 def decoy(request):
     """
     An extra copy of the busybox container to run during all tests.
