@@ -34,7 +34,6 @@ def clean_test_images():
 
 @fixture
 def busybox(request):
-    client = Client()
     bb = test_container('busybox')
 
     if not bb.images():
