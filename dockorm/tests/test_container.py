@@ -58,7 +58,6 @@ def test_container_run(busybox):
 
 
 def test_container_join(busybox):
-
     busybox.run(['sleep', '1'])
 
     instance = busybox.running()
@@ -141,7 +140,7 @@ def test_container_build_remove(busybox, capsys):
     stdout = stdout.splitlines()
     assert stdout[1] == 'Step 1 : RUN echo testing'
     assert stdout[3] == 'testing'
-    assert stdout[5].startswith('Successfully built')
+    assert stdout[-1].startswith('Successfully built')
 
     image = scalar(busybox.images())
     assert image['RepoTags'] == [
