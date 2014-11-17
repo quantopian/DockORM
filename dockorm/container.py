@@ -221,7 +221,7 @@ class Container(HasTraits):
         Return the running instance of this container, or None if no container
         is running.
         """
-        container = self.client.containers(all=False)
+        container = self.instances(all=False)
         if container:
             return scalar(container)
         else:
