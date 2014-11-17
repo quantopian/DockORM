@@ -297,7 +297,3 @@ class Link(HasTraits):
     container = Instance(Container)
     alias = Unicode()
 
-
-if __name__ == '__main__':
-    cont = Container(image='busybox')
-    cont.run()
