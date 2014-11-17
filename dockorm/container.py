@@ -162,7 +162,7 @@ class Container(HasTraits):
             self._client = Client()
         return self._client
 
-    def build(self, tag=None, display=True):
+    def build(self, tag=None, display=True, rm=True):
         """
         Build the container.
 
@@ -172,6 +172,9 @@ class Container(HasTraits):
         output = self.client.build(
             self.build_path,
             self.full_imagename(tag=tag),
+            # This is in line with the docker CLI, but different from
+            # docker-py's default.
+            rm=rm,
         )
         if display:
             print_build_output(output)
