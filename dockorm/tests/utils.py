@@ -19,3 +19,14 @@ def dockerfile_root(path):
         'dockerfiles',
         path,
     )
+
+
+def volume(path):
+    """
+    Path to a file relative to the test volumes directory.
+    """
+    return join(
+        dirname(__file__),
+        'volumes',
+        path,
+    )

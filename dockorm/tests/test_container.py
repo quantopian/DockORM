@@ -9,6 +9,7 @@ from .conftest import (
     TEST_ORG,
     TEST_TAG,
 )
+from .utils import volume
 from ..container import scalar, Container
 
 
@@ -16,6 +17,12 @@ def checked_join(container):
     container.join()
     assert container.running() is None
     return container.inspect()
+
+
+def checked_purge(container):
+    container.purge()
+    assert container.running() is None
+    assert container.instances() == []
 
 
 def validate_dict(to_test, expected):
@@ -29,6 +36,14 @@ def validate_dict(to_test, expected):
             validate_dict(to_test[key], value)
         else:
             assert to_test[key] == value
+
+
+def assert_in_logs(container, line):
+    """
+    Assert that the given lines are in the container's logs.
+    """
+    logs = scalar(container.logs(all=True))
+    validate_dict(logs, {'Logs': line})
 
 
 def test_container_run(busybox):
@@ -91,9 +106,7 @@ def test_container_join(busybox):
 def test_container_logs(busybox):
     busybox.run(['echo', 'foo'])
     checked_join(busybox)
-
-    logs = scalar(busybox.logs(all=True))
-    validate_dict(logs, {'Logs': b'foo\n'})
+    assert_in_logs(busybox, b'foo\n')
 
 
 def test_container_environment(busybox):
@@ -119,13 +132,41 @@ def test_container_purge(busybox):
     details = checked_join(busybox)
     assert details
 
-    busybox.purge()
+    checked_purge(busybox)
 
-    assert busybox.running() is None
-    assert busybox.instances() == []
     with raises(APIError) as e:
         val = busybox.inspect()
     assert e.value.response.status_code == 404
+
+
+def test_container_volumes_rw(busybox):
+    volume_loc = volume('foo.txt')
+    busybox.volumes_readwrite = {volume_loc: 'bar.txt'}
+    busybox.run(['cat', 'bar.txt'])
+    details = checked_join(busybox)
+    validate_dict(
+        details,
+        {
+            'Volumes': {'bar.txt': volume_loc},
+            'VolumesRW': {'bar.txt': True}
+        }
+    )
+    assert_in_logs(busybox, b'This is a volume!\n')
+
+
+def test_container_volumes_ro(busybox):
+    volume_loc = volume('foo.txt')
+    busybox.volumes_readonly = {volume_loc: 'bar.txt'}
+    busybox.run(['cat', 'bar.txt'])
+    details = checked_join(busybox)
+    validate_dict(
+        details,
+        {
+            'Volumes': {'bar.txt': volume_loc},
+            'VolumesRW': {'bar.txt': False}
+        }
+    )
+    assert_in_logs(busybox, b'This is a volume!\n')
 
 
 def test_container_build_remove(busybox, capsys):
