@@ -9,6 +9,7 @@ from subprocess import call
 import sys
 
 from docker import Client
+from docker.utils import kwargs_from_env
 from six import (
     iteritems,
     iterkeys,
@@ -154,13 +155,7 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    _client = Any()
-
-    @property
-    def client(self):
-        if self._client is None:
-            self._client = Client()
-        return self._client
+    client = Instance(Client, kw=kwargs_from_env())
 
     def build(self, tag=None, display=True, rm=True):
         """
