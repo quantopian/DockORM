@@ -291,4 +291,3 @@ class Link(HasTraits):
     """
     container = Instance(Container)
     alias = Unicode()
-
