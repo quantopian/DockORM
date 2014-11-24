@@ -177,10 +177,15 @@ class Container(HasTraits):
         else:
             return list(output)
 
-    def run(self, command=None, tag=None, attach=False):
+    def run(self, command=None, tag=None, attach=False, rm=False):
         """
         Run this container.
         """
+        if rm and not attach:
+            raise ValueError(
+                "Auto-remove is not supported with detached execution."
+            )
+
         container = self.client.create_container(
             self.full_imagename(tag),
             name=self.name,
@@ -202,6 +207,9 @@ class Container(HasTraits):
 
         if attach:
             call(['docker', 'attach', self.name])
+            if rm:
+                self.client.remove_container(self.name)
+
 
     def _matches(self, container):
         return '/' + self.name in container['Names']
