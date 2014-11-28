@@ -18,6 +18,7 @@ from six import (
     string_types,
     text_type,
 )
+from tornado import gen
 
 
 from IPython.utils.traitlets import (
@@ -31,6 +32,7 @@ from IPython.utils.traitlets import (
 )
 
 from .py3compat_utils import strict_map
+from .async import AsyncDockerClient
 
 
 def print_build_output(build_output):
@@ -56,6 +58,25 @@ def scalar(l):
     """
     assert len(l) == 1
     return l[0]
+
+
+def sync_coroutine(f):
+    """
+    Synchronous version of gen.coroutine.
+    """
+    def f_as_coroutine(*args, **kwargs):
+        co = f(*args, **kwargs)
+        try:
+            value = gen.maybe_future(next(co)).result()
+            while True:
+                value = gen.maybe_future(co.send(value)).result()
+        except gen.Return as e:
+            return e.value
+        except StopIteration:
+            return None
+    return f_as_coroutine
+
+async_coroutine = gen.coroutine
 
 
 class Container(HasTraits):
@@ -210,7 +231,7 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    client = Instance(Client, kw=kwargs_from_env())
+    client = Instance(AsyncDockerClient, kw=kwargs_from_env())
 
     def build(self, tag=None, display=True, rm=True):
         """
@@ -218,6 +239,8 @@ class Container(HasTraits):
 
         If display is True, write build output to stdout.  Otherwise return it
         as a generator.
+
+        Building is always performed synchronously
         """
         output = self.client.build(
             self.build_path,
@@ -225,13 +248,13 @@ class Container(HasTraits):
             # This is in line with the docker CLI, but different from
             # docker-py's default.
             rm=rm,
-        )
+        ).result()
         if display:
             return print_build_output(output)
         else:
             return list(output)
 
-    def run(self, command=None, tag=None, attach=False, rm=False):
+    def _run(self, command=None, tag=None, attach=False, rm=False):
         """
         Run this container.
         """
@@ -240,7 +263,7 @@ class Container(HasTraits):
                 "Auto-remove is not supported with detached execution."
             )
 
-        container = self.client.create_container(
+        container = yield self.client.create_container(
             self.full_imagename(tag),
             name=self.name,
             ports=self.open_container_ports,
@@ -258,93 +281,106 @@ class Container(HasTraits):
         if attach:
             call(['docker', 'attach', self.name])
             if rm:
-                self.client.remove_container(self.name)
+                yield self.client.remove_container(self.name)
+    run = sync_coroutine(_run)
 
     def _matches(self, container):
         return '/' + self.name in container['Names']
 
-    def instances(self, all=True):
+    def _instances(self, all=True):
         """
         Return any instances of this container, running or not.
         """
-        return [
-            c for c in self.client.containers(all=all) if self._matches(c)
-        ]
+        raise gen.Return(
+            [
+                c for c in (yield self.client.containers(all=all))
+                if self._matches(c)
+            ]
+        )
+    instances = sync_coroutine(_instances)
 
-    def running(self):
+    def _running(self):
         """
         Return the running instance of this container, or None if no container
         is running.
         """
-        container = self.instances(all=False)
+        container = yield self.instances(all=False)
         if container:
-            return scalar(container)
+            raise gen.Return(scalar(container))
         else:
-            return None
+            raise gen.Return(None)
+    running = sync_coroutine(_running)
 
-    def stop(self):
-        self.client.stop(self.name)
+    def _stop(self):
+        raise gen.Return(self.client.stop(self.name))
+    stop = sync_coroutine(_stop)
 
-    def purge(self, stop_first=True, remove_volumes=False):
+    def _purge(self, stop_first=True, remove_volumes=False):
         """
         Purge all containers of this type.
         """
-        for container in self.instances():
+        for container in (yield self.instances()):
             if stop_first:
-                self.client.stop(container)
+                yield self.client.stop(container)
             else:
-                self.client.kill(container)
-            self.client.remove_container(
+                yield self.client.kill(container)
+            yield self.client.remove_container(
                 container,
                 v=remove_volumes,
             )
+    purge = sync_coroutine(_purge)
 
-    def inspect(self, tag=None):
+    def _inspect(self, tag=None):
         """
         Inspect any running instance of this container.
         """
-        return self.client.inspect_container(
-            self.name,
+        raise gen.Return(
+            (
+                yield self.client.inspect_container(
+                    self.name,
+                )
+            )
         )
+    inspect = sync_coroutine(_inspect)
 
-    def images(self):
+    def _images(self):
         """
         Return any images matching our current organization/name.
 
         Does not filter by tag.
         """
-        return self.client.images(self.full_imagename().split(':')[0])
+        raise gen.Return(
+            (yield self.client.images(self.full_imagename().split(':')[0]))
+        )
+    images = sync_coroutine(_images)
 
-    def remove_images(self):
+    def _remove_images(self):
         """
         Remove any images matching our current organization/name.
 
         Does not filter by tag.
         """
-        for image in self.images():
-            self.client.remove_image(image)
+        for image in (yield self.images()):
+            yield self.client.remove_image(image)
+    remove_images = sync_coroutine(_remove_images)
 
-    def logs(self, all=False):
-        return [
-            {
-                'Id': container,
-                'Logs': self.client.logs(container)
-            }
-            for container in self.instances(all=all)
-        ]
+    def _logs(self, all=False):
+        out = []
+        for container in (yield self.instances(all=all)):
+            out.append(
+                {
+                    'Id': container,
+                    'Logs': (yield self.client.logs(container)),
+                }
+            )
+        raise gen.Return(out)
+    logs = sync_coroutine(_logs)
 
-    def join(self):
+    def _join(self):
         """
         Wait until there are no instances of this container running.
         """
-        container = self.running()
+        container = yield self.running()
         if container:
-            self.client.wait(container)
-
-
-class Link(HasTraits):
-    """
-    A link between containers.
-    """
-    container = Instance(Container)
-    alias = Unicode()
+            yield self.client.wait(container)
+    join = sync_coroutine(_join)
