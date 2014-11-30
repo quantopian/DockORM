@@ -32,8 +32,12 @@ from IPython.utils.traitlets import (
 )
 
 from .py3compat_utils import strict_map
-from .async import AsyncDockerClient
-
+from .async import (
+    AsyncDockerClient,
+    coroutine,
+    synchronous_coroutines,
+    asynchronous_coroutines,
+)
 
 def print_build_output(build_output):
     success = True
@@ -60,26 +64,7 @@ def scalar(l):
     return l[0]
 
 
-def sync_coroutine(f):
-    """
-    Synchronous version of gen.coroutine.
-    """
-    def f_as_coroutine(*args, **kwargs):
-        co = f(*args, **kwargs)
-        try:
-            value = gen.maybe_future(next(co)).result()
-            while True:
-                value = gen.maybe_future(co.send(value)).result()
-        except gen.Return as e:
-            return e.value
-        except StopIteration:
-            return None
-    return f_as_coroutine
-
-async_coroutine = gen.coroutine
-
-
-class Container(HasTraits):
+class ContainerBase(HasTraits):
     """
     A specification for creation of a container.
     """
@@ -231,7 +216,7 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    client = Instance(AsyncDockerClient, kw=kwargs_from_env())
+    client = Instance(Client, kw=kwargs_from_env())
 
     def build(self, tag=None, display=True, rm=True):
         """
@@ -240,21 +225,24 @@ class Container(HasTraits):
         If display is True, write build output to stdout.  Otherwise return it
         as a generator.
 
-        Building is always performed synchronously
+        Building asynchronously is not supported.
         """
-        output = self.client.build(
-            self.build_path,
-            self.full_imagename(tag=tag),
-            # This is in line with the docker CLI, but different from
-            # docker-py's default.
-            rm=rm,
+        output = gen.maybe_future(
+            self.client.build(
+                self.build_path,
+                self.full_imagename(tag=tag),
+                # This is in line with the docker CLI, but different from
+                # docker-py's default.
+                rm=rm,
+            )
         ).result()
         if display:
             return print_build_output(output)
         else:
             return list(output)
 
-    def _run(self, command=None, tag=None, attach=False, rm=False):
+    @coroutine
+    def run(self, command=None, tag=None, attach=False, rm=False):
         """
         Run this container.
         """
@@ -282,12 +270,12 @@ class Container(HasTraits):
             call(['docker', 'attach', self.name])
             if rm:
                 yield self.client.remove_container(self.name)
-    run = sync_coroutine(_run)
 
     def _matches(self, container):
         return '/' + self.name in container['Names']
 
-    def _instances(self, all=True):
+    @coroutine
+    def instances(self, all=True):
         """
         Return any instances of this container, running or not.
         """
@@ -297,9 +285,9 @@ class Container(HasTraits):
                 if self._matches(c)
             ]
         )
-    instances = sync_coroutine(_instances)
 
-    def _running(self):
+    @coroutine
+    def running(self):
         """
         Return the running instance of this container, or None if no container
         is running.
@@ -309,13 +297,13 @@ class Container(HasTraits):
             raise gen.Return(scalar(container))
         else:
             raise gen.Return(None)
-    running = sync_coroutine(_running)
 
-    def _stop(self):
+    @coroutine
+    def stop(self):
         raise gen.Return(self.client.stop(self.name))
-    stop = sync_coroutine(_stop)
 
-    def _purge(self, stop_first=True, remove_volumes=False):
+    @coroutine
+    def purge(self, stop_first=True, remove_volumes=False):
         """
         Purge all containers of this type.
         """
@@ -328,9 +316,9 @@ class Container(HasTraits):
                 container,
                 v=remove_volumes,
             )
-    purge = sync_coroutine(_purge)
 
-    def _inspect(self, tag=None):
+    @coroutine
+    def inspect(self, tag=None):
         """
         Inspect any running instance of this container.
         """
@@ -341,9 +329,9 @@ class Container(HasTraits):
                 )
             )
         )
-    inspect = sync_coroutine(_inspect)
 
-    def _images(self):
+    @coroutine
+    def images(self):
         """
         Return any images matching our current organization/name.
 
@@ -352,9 +340,9 @@ class Container(HasTraits):
         raise gen.Return(
             (yield self.client.images(self.full_imagename().split(':')[0]))
         )
-    images = sync_coroutine(_images)
 
-    def _remove_images(self):
+    @coroutine
+    def remove_images(self):
         """
         Remove any images matching our current organization/name.
 
@@ -362,9 +350,9 @@ class Container(HasTraits):
         """
         for image in (yield self.images()):
             yield self.client.remove_image(image)
-    remove_images = sync_coroutine(_remove_images)
 
-    def _logs(self, all=False):
+    @coroutine
+    def logs(self, all=False):
         out = []
         for container in (yield self.instances(all=all)):
             out.append(
@@ -374,13 +362,36 @@ class Container(HasTraits):
                 }
             )
         raise gen.Return(out)
-    logs = sync_coroutine(_logs)
 
-    def _join(self):
+    @coroutine
+    def join(self):
         """
         Wait until there are no instances of this container running.
         """
         container = yield self.running()
         if container:
             yield self.client.wait(container)
-    join = sync_coroutine(_join)
+
+
+@synchronous_coroutines
+class Container(ContainerBase):
+    """
+    Synchronously-executing container.
+    """
+    pass
+
+
+@asynchronous_coroutines
+class AsyncContainer(ContainerBase):
+    """
+    Asynchronously-executing container.
+    """
+    client = Instance(AsyncDockerClient, kw=kwargs_from_env())
+
+
+class Link(HasTraits):
+    """
+    A link between containers.
+    """
+    container = Instance(Container)
+    alias = Unicode()

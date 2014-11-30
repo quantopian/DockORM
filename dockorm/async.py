@@ -1,4 +1,7 @@
 # encoding: utf-8
+"""
+Utilities for asynchronously launching docker containers.
+"""
 from __future__ import unicode_literals
 try:
     # Python3
@@ -6,8 +9,13 @@ try:
 except ImportError:
     from futures.thread import ThreadPoolExecutor
 
+from functools import partial
 from docker import Client
 from requests_futures.sessions import FuturesSession
+from six import (
+    iteritems,
+)
+from tornado import gen
 
 
 class AsyncDockerClient(object):
@@ -35,3 +43,60 @@ class AsyncDockerClient(object):
             return self._executor.submit(fn, *args, **kwargs)
 
         return method
+
+
+def coroutine(f):
+    """
+    Mark a function as a coroutine for use with sync_coroutine or
+    gen.coroutine.
+
+    Does nothing by itself but set a flag used by @synchronous_coroutines and
+    @asynchronous_coroutines decorators.
+    """
+    f.__is_coroutine = True
+    return f
+
+
+def sync_coroutine(f):
+    """
+    Synchronous version of gen.coroutine.
+    """
+    def f_as_coroutine(*args, **kwargs):
+        co = f(*args, **kwargs)
+        try:
+            value = gen.maybe_future(next(co)).result()
+            while True:
+                value = gen.maybe_future(co.send(value)).result()
+        except gen.Return as e:
+            return e.value
+        except StopIteration:
+            return None
+    return f_as_coroutine
+
+
+def _specialize_coroutines(cls, specializer):
+    """
+    Traverse a newly-created class looking for functions marked as coroutines
+    and apply `specializer` to them.
+    """
+    overrides = {}
+    for supercls in cls.__mro__:
+        for key, value in iteritems(supercls.__dict__):
+            if getattr(value, '__is_coroutine', False):
+                if key in overrides:
+                    continue
+                overrides[key] = specializer(value)
+    for key, value in iteritems(overrides):
+        setattr(cls, key, value)
+    return cls
+
+
+# Actual decorators for public use.
+synchronous_coroutines = partial(
+    _specialize_coroutines,
+    specializer=sync_coroutine,
+)
+asynchronous_coroutines = partial(
+    _specialize_coroutines,
+    specializer=gen.coroutine,
+)
