@@ -1,13 +1,17 @@
 """
 Utilities for dockorm tests.
 """
-
 # encoding: utf-8
 from __future__ import unicode_literals
 from os.path import (
     dirname,
     join,
 )
+
+from ..container import Container
+
+TEST_ORG = 'dockorm_testing'
+TEST_TAG = 'test'
 
 
 def dockerfile_root(path):
@@ -18,6 +22,16 @@ def dockerfile_root(path):
         dirname(__file__),
         'dockerfiles',
         path,
+    )
+
+
+def test_container(image, **kwargs):
+    return Container(
+        image=image,
+        build_path=dockerfile_root(image),
+        organization=TEST_ORG,
+        tag=TEST_TAG,
+        **kwargs
     )
 
 

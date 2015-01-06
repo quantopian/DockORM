@@ -4,21 +4,10 @@ from __future__ import unicode_literals
 from docker import Client
 from pytest import fixture
 
-from ..container import Container
-from .utils import dockerfile_root
-
-TEST_ORG = 'dockorm_testing'
-TEST_TAG = 'test'
-
-
-def test_container(image, **kwargs):
-    return Container(
-        image=image,
-        build_path=dockerfile_root(image),
-        organization=TEST_ORG,
-        tag=TEST_TAG,
-        **kwargs
-    )
+from .utils import (
+    TEST_ORG,
+    test_container,
+)
 
 
 @fixture(scope='session', autouse=True)

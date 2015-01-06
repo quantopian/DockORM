@@ -5,12 +5,16 @@ from docker.errors import APIError
 from pytest import raises
 from six import iteritems
 
-from .conftest import (
+from .utils import (
     TEST_ORG,
     TEST_TAG,
+    test_container,
+    volume,
 )
-from .utils import volume
-from ..container import scalar, Container
+from ..container import (
+    Container,
+    scalar,
+)
 
 
 def checked_join(container):

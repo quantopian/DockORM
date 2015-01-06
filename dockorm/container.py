@@ -6,7 +6,6 @@ from __future__ import print_function, unicode_literals
 from itertools import chain
 import json
 from subprocess import call
-import sys
 
 from docker import Client
 from docker.utils import kwargs_from_env
@@ -17,7 +16,6 @@ from six import (
     text_type,
 )
 
-from IPython.utils.py3compat import string_types
 
 from IPython.utils.traitlets import (
     Any,
@@ -25,7 +23,6 @@ from IPython.utils.traitlets import (
     HasTraits,
     Instance,
     List,
-    Type,
     Unicode,
     TraitError,
 )
@@ -144,7 +141,7 @@ class Container(HasTraits):
     def port_bindings(self):
         out = {}
         for key, value in self.ports:
-            if isinstance(ports, (list, tuple)):
+            if isinstance(key, (list, tuple)):
                 key = '/'.join(strict_map(text_type, key))
             out[key] = value
         return out
@@ -209,7 +206,6 @@ class Container(HasTraits):
             call(['docker', 'attach', self.name])
             if rm:
                 self.client.remove_container(self.name)
-
 
     def _matches(self, container):
         return '/' + self.name in container['Names']
