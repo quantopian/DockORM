@@ -194,3 +194,15 @@ def test_container_build_remove(busybox, capsys):
 
     busybox.remove_images()
     assert busybox.images() == []
+
+def test_build_failed_pull(capsys):
+    orphan = test_container('orphan')
+    output = orphan.build()
+    stdout, stderr = capsys.readouterr()
+    assert stderr == ''
+    stdout = stdout.splitlines()
+    assert len(stdout) == 2
+    assert stdout[0] == 'Pulling repository dockorm_fake_org/dockorm_fake_image'
+    assert (
+        stdout[1] == 'Error: image dockorm_fake_org/dockorm_fake_image not found'
+    )

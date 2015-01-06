@@ -39,6 +39,18 @@ def busybox(request):
     return bb
 
 
+@fixture
+def orphan(request):
+    container = test_container('orphan')
+
+    def clean():
+        container.purge(stop_first=False, remove_volumes=True)
+
+    request.addfinalizer(clean)
+
+    return container
+
+
 @fixture(scope='session', autouse=True)
 def decoy(request):
     """

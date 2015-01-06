@@ -34,11 +34,16 @@ def print_build_output(build_output):
     success = True
     for raw_message in build_output:
         message = json.loads(raw_message)
-        try:
+        if 'stream' in message:
             print(message['stream'], end="")
-        except KeyError:
+        elif 'status' in message:
+            print(message['status'])
+        elif 'error' in message:
             success = False
             print(message['error'])
+        else:
+            success = False
+            print("Unknown message during build: %s" % message)
     return success
 
 
