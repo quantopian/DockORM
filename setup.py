@@ -43,7 +43,7 @@ setup_args = dict(
         'Programming Language :: Python :: 3.4',
     ],
     install_requires=install_requires,
-    url="https://github.com/quantopian/qgrid",
+    url="https://github.com/quantopian/dockrm",
 )
 
 
