@@ -30,7 +30,6 @@ from IPython.utils.traitlets import (
 from .py3compat_utils import strict_map
 
 
-
 def print_build_output(build_output):
     success = True
     for raw_message in build_output:
