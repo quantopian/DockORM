@@ -6,7 +6,7 @@ from pytest import fixture
 
 from .utils import (
     TEST_ORG,
-    test_container,
+    make_container,
 )
 
 
@@ -26,7 +26,7 @@ def clean_test_images(request):
 
 @fixture
 def busybox(request):
-    bb = test_container('busybox')
+    bb = make_container('busybox')
 
     if not bb.images():
         bb.build(display=False)
@@ -41,7 +41,7 @@ def busybox(request):
 
 @fixture
 def orphan(request):
-    container = test_container('orphan')
+    container = make_container('orphan')
 
     def clean():
         container.purge(stop_first=False, remove_volumes=True)
@@ -58,7 +58,7 @@ def decoy(request):
 
     Ensures that by-name filters correctly ignore differently-named containers.
     """
-    bb = test_container('busybox_decoy')
+    bb = make_container('busybox_decoy')
     if not bb.images():
         bb.build(display=False)
 

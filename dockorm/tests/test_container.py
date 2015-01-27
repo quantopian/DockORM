@@ -3,17 +3,17 @@ from __future__ import unicode_literals
 
 from docker.errors import APIError
 from pytest import raises
-from six import iteritems
 
+from ..container import (
+    scalar,
+)
 from .utils import (
+    assert_in_logs,
     TEST_ORG,
     TEST_TAG,
-    test_container,
+    make_container,
+    validate_dict,
     volume,
-)
-from ..container import (
-    Container,
-    scalar,
 )
 
 
@@ -27,27 +27,6 @@ def checked_purge(container):
     container.purge()
     assert container.running() is None
     assert container.instances() == []
-
-
-def validate_dict(to_test, expected):
-    """
-    Recursively validate a dictionary of expectations against another input.
-
-    Like TestCase.assertDictContainsSubset, but recursive.
-    """
-    for key, value in iteritems(expected):
-        if isinstance(value, dict):
-            validate_dict(to_test[key], value)
-        else:
-            assert to_test[key] == value
-
-
-def assert_in_logs(container, line):
-    """
-    Assert that the given lines are in the container's logs.
-    """
-    logs = scalar(container.logs(all=True))
-    validate_dict(logs, {'Logs': line})
 
 
 def test_container_run(busybox):
@@ -118,7 +97,7 @@ def test_container_environment(busybox):
     busybox.run(
         ['env']
     )
-    results = checked_join(busybox)
+    checked_join(busybox)
 
     env_dict = {
         pair[0]: pair[1] for pair in
@@ -139,7 +118,7 @@ def test_container_purge(busybox):
     checked_purge(busybox)
 
     with raises(APIError) as e:
-        val = busybox.inspect()
+        busybox.inspect()
     assert e.value.response.status_code == 404
 
 
@@ -177,15 +156,19 @@ def test_container_build_remove(busybox, capsys):
     # Ensure that we actually do a build.
     busybox.remove_images()
 
-    output = busybox.build()
+    busybox.build()
     stdout, stderr = capsys.readouterr()
-
-    # NOTE: docker-py drops the first line of normal build output.
     assert stderr == ''
     stdout = stdout.splitlines()
-    assert stdout[1] == 'Step 1 : RUN echo testing'
-    assert stdout[3] == 'testing'
-    assert stdout[-1].startswith('Successfully built')
+    assert len(stdout) == 8
+    assert stdout[0] == 'Step 0 : FROM busybox'
+    assert stdout[1].startswith(' --->')
+    assert stdout[2] == 'Step 1 : RUN echo testing'
+    assert stdout[3].startswith(' ---> Running in')
+    assert stdout[4] == 'testing'
+    assert stdout[5].startswith(' --->')
+    assert stdout[6].startswith('Removing intermediate container')
+    assert stdout[7].startswith('Successfully built')
 
     image = scalar(busybox.images())
     assert image['RepoTags'] == [
@@ -195,14 +178,24 @@ def test_container_build_remove(busybox, capsys):
     busybox.remove_images()
     assert busybox.images() == []
 
+
 def test_build_failed_pull(capsys):
-    orphan = test_container('orphan')
-    output = orphan.build()
+    orphan = make_container('orphan')
+    orphan.build()
     stdout, stderr = capsys.readouterr()
     assert stderr == ''
     stdout = stdout.splitlines()
-    assert len(stdout) == 2
-    assert stdout[0] == 'Pulling repository dockorm_fake_org/dockorm_fake_image'
+    assert len(stdout) == 3
+    assert(
+        stdout[0] ==
+        "Step 0 : FROM dockorm_fake_org/dockorm_fake_image:dockorm_fake_tag"
+    )
     assert (
-        stdout[1] == 'Error: image dockorm_fake_org/dockorm_fake_image not found'
+        stdout[1] ==
+        'Pulling repository dockorm_fake_org/dockorm_fake_image'
+    )
+    assert (
+        stdout[2] ==
+        "Error: image dockorm_fake_org/dockorm_fake_image:dockorm_fake_tag "
+        "not found"
     )
