@@ -11,7 +11,6 @@ except ImportError:
 
 from functools import partial
 from docker import Client
-from requests_futures.sessions import FuturesSession
 from six import (
     iteritems,
 )
