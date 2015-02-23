@@ -174,8 +174,7 @@ class Container(HasTraits):
             rm=rm,
         )
         if display:
-            print_build_output(output)
-            return None
+            return print_build_output(output)
         else:
             return list(output)
 
