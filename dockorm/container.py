@@ -153,6 +153,11 @@ class Container(HasTraits):
 
     environment = Dict()
 
+    network_mode = Unicode(
+        default_value="bridge",
+        help="network_mode for start",
+    )
+
     # This should really be something like:
     # Either(Instance(str), List(Instance(str)))
     command = Any()
@@ -201,6 +206,7 @@ class Container(HasTraits):
 
         self.client.start(
             container,
+            network_mode=self.network_mode,
             binds=self.volume_binds,
             port_bindings=self.ports,
             links=self.format_links(),
