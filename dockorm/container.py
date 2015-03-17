@@ -158,6 +158,10 @@ class Container(HasTraits):
         help="network_mode for start",
     )
 
+    extra_hosts = Dict(
+        help="Extra entries for container /etc/hosts",
+    )
+
     # This should really be something like:
     # Either(Instance(str), List(Instance(str)))
     command = Any()
@@ -207,6 +211,7 @@ class Container(HasTraits):
         self.client.start(
             container,
             network_mode=self.network_mode,
+            extra_hosts=self.extra_hosts,
             binds=self.volume_binds,
             port_bindings=self.ports,
             links=self.format_links(),
