@@ -137,6 +137,89 @@ def test_container_volumes_rw(busybox):
     assert_in_logs(busybox, b'This is a volume!\n')
 
 
+def test_container_extra_hosts(busybox):
+
+    busybox.extra_hosts = {'www.test.com': '8.8.8.8'}
+
+    busybox.run(['cat', '/etc/hosts'])
+    assert(checked_join(busybox))
+
+    logs_list = busybox.logs(all=True)
+    assert len(logs_list) == 1
+
+    actual_logs = logs_list[0]['Logs'].split(b'\n')
+    assert b'8.8.8.8\twww.test.com' in actual_logs
+
+
+def test_container_ports(busybox):
+    busybox.ports = {
+        1111: 1112,
+        2222: None,
+        (3333, 'udp'): 3334,
+        4444: ('127.0.0.1', 4445),
+    }
+
+    busybox.run(['sleep', '2147483647'])
+
+    instance = scalar(busybox.instances(all=True))
+    expected_ports = [
+        {
+            'IP': '0.0.0.0',
+            'PrivatePort': 1111,
+            'PublicPort': 1112,
+            'Type': 'tcp',
+        },
+        {
+            'IP': '0.0.0.0',
+            'PrivatePort': 2222,
+            'Type': 'tcp',
+            'PublicPort': 'UNKNOWN',  # Gets filled in below.
+        },
+        {
+            'IP': '',
+            'PrivatePort': 3333,
+            'PublicPort': 3334,
+            'Type': 'udp',
+        },
+        {'PrivatePort': 3333, 'Type': 'tcp'},
+        {
+            'IP': '127.0.0.1',
+            'PrivatePort': 4444,
+            'PublicPort': 4445,
+            'Type': 'tcp'
+        },
+    ]
+    received_ports = sorted(
+        [
+            data for data in instance['Ports']
+        ],
+        key=lambda d: (d['PrivatePort'], d.get('PublicPort', float('inf'))),
+    )
+    for i, data in enumerate(received_ports):
+        if data['PrivatePort'] == 2222:
+            expected_ports[i]['PublicPort'] = data['PublicPort']
+            host_port_2222 = data['PublicPort']
+        assert data == expected_ports[i]
+
+    details = busybox.inspect()
+    expected_host_config_ports = {
+        '1111/tcp': [{'HostIp': '', 'HostPort': '1112'}],
+        '2222/tcp': [{'HostIp': '', 'HostPort': ''}],
+        '3333/udp': [{'HostIp': '', 'HostPort': '3334'}],
+        '4444/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '4445'}],
+    }
+    assert details['HostConfig']['PortBindings'] == expected_host_config_ports
+
+    expected_network_ports = {
+        '1111/tcp': [{'HostIp': '0.0.0.0', 'HostPort': '1112'}],
+        '2222/tcp': [{'HostIp': '0.0.0.0', 'HostPort': str(host_port_2222)}],
+        '3333/tcp': None,
+        '3333/udp': [{'HostIp': '', 'HostPort': '3334'}],
+        '4444/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '4445'}],
+    }
+    assert details['NetworkSettings']['Ports'] == expected_network_ports
+
+
 def test_container_volumes_ro(busybox):
     volume_loc = volume('foo.txt')
     busybox.volumes_readonly = {volume_loc: 'bar.txt'}

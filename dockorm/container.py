@@ -8,11 +8,14 @@ import json
 from subprocess import call
 
 from docker import Client
-from docker.utils import kwargs_from_env
+from docker.utils import (
+    create_host_config,
+    kwargs_from_env,
+)
 from six import (
     iteritems,
-    iterkeys,
     itervalues,
+    string_types,
     text_type,
 )
 
@@ -136,19 +139,34 @@ class Container(HasTraits):
         volumes.update(ro_volumes)
         return volumes
 
-    ports = Dict(help="Map from container port -> host port.")
-
-    @property
-    def open_container_ports(self):
-        return strict_map(int, iterkeys(self.ports))
+    ports = Dict(
+        help="Map from container port -> host port. "
+        "See http://docker-py.readthedocs.org/en/latest/port-bindings/."
+    )
 
     @property
     def port_bindings(self):
         out = {}
-        for key, value in self.ports:
-            if isinstance(key, (list, tuple)):
+        for key, value in iteritems(self.ports):
+            if isinstance(key, tuple):
+                # Convert (1111, 'udp') -> '1111/udp'
                 key = '/'.join(strict_map(text_type, key))
             out[key] = value
+        return out
+
+    @property
+    def open_container_ports(self):
+        out = []
+        for key in self.ports:
+            if isinstance(key, int):
+                to_append = key
+            elif isinstance(key, string_types):
+                to_append = int(key)
+            elif isinstance(key, tuple):
+                to_append = key[0]
+            else:
+                raise TypeError("Couldn't understand port key %s" % key)
+            out.append(to_append)
         return out
 
     environment = Dict()
@@ -161,6 +179,32 @@ class Container(HasTraits):
     extra_hosts = Dict(
         help="Extra entries for container /etc/hosts",
     )
+
+    def _make_host_config(self):
+        return create_host_config(
+            binds=self.volume_binds,
+            port_bindings=self.port_bindings,
+            network_mode=self.network_mode,
+            extra_hosts=self.extra_hosts,
+            # TODO: Support all of these.
+            lxc_conf=None,
+            publish_all_ports=False,
+            links=None,
+            privileged=False,
+            dns=None,
+            dns_search=None,
+            volumes_from=None,
+            restart_policy=None,
+            cap_add=None,
+            cap_drop=None,
+            devices=None,
+            read_only=None,
+            pid_mode=None,
+            ipc_mode=None,
+            security_opt=None,
+            ulimits=None,
+            log_config=None,
+        )
 
     # This should really be something like:
     # Either(Instance(str), List(Instance(str)))
@@ -204,18 +248,12 @@ class Container(HasTraits):
             detach=not attach,
             stdin_open=attach,
             tty=attach,
-            command=command,
+            command=command or self.command,
             environment=self.environment,
+            host_config=self._make_host_config(),
         )
 
-        self.client.start(
-            container,
-            network_mode=self.network_mode,
-            extra_hosts=self.extra_hosts,
-            binds=self.volume_binds,
-            port_bindings=self.ports,
-            links=self.format_links(),
-        )
+        self.client.start(container)
 
         if attach:
             call(['docker', 'attach', self.name])
