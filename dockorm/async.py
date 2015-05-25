@@ -9,7 +9,7 @@ try:
 except ImportError:
     from futures.thread import ThreadPoolExecutor
 
-from functools import partial
+from functools import partial, wraps
 from docker import Client
 from six import (
     iteritems,
@@ -52,14 +52,19 @@ def coroutine(f):
     Does nothing by itself but set a flag used by @synchronous_coroutines and
     @asynchronous_coroutines decorators.
     """
-    f.__is_coroutine = True
+    f.__dockorm_coroutine = True
     return f
+
+
+def _is_coroutine(f):
+    return getattr(f, '__dockorm_coroutine', False)
 
 
 def sync_coroutine(f):
     """
     Synchronous version of gen.coroutine.
     """
+    @wraps(f)
     def f_as_coroutine(*args, **kwargs):
         co = f(*args, **kwargs)
         try:
@@ -81,7 +86,7 @@ def _specialize_coroutines(cls, specializer):
     overrides = {}
     for supercls in cls.__mro__:
         for key, value in iteritems(supercls.__dict__):
-            if getattr(value, '__is_coroutine', False):
+            if _is_coroutine(value):
                 if key in overrides:
                     continue
                 overrides[key] = specializer(value)
