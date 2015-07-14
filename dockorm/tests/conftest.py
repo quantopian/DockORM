@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from docker import Client
+from docker.utils import kwargs_from_env
 from pytest import fixture
 
 from .utils import (
@@ -16,7 +17,7 @@ def clean_test_images(request):
     Automatically clear all test images after each test run.
     """
     def cleanup():
-        client = Client()
+        client = Client(**kwargs_from_env())
         test_images = client.images(TEST_ORG + "/*")
         for image in test_images:
             client.remove_image(image)
