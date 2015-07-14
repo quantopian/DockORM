@@ -20,7 +20,7 @@ from six import (
 )
 
 
-from IPython.utils.traitlets import (
+from traitlets import (
     Any,
     Dict,
     HasTraits,
@@ -210,7 +210,7 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    client = Instance(Client, kw=kwargs_from_env())
+    client = Instance(Client, kw=kwargs_from_env(), allow_none=True)
 
     def build(self, tag=None, display=True, rm=True):
         """
