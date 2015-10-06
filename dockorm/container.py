@@ -28,6 +28,7 @@ from traitlets import (
     List,
     Unicode,
     TraitError,
+    Bool,
 )
 
 from .py3compat_utils import strict_map
@@ -210,7 +211,25 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    client = Instance(Client, kw=kwargs_from_env(), allow_none=True)
+    tls_assert_hostname = Bool(
+        None, allow_none=True, config=True,
+        help="If True, will verify hostname of docker daemon",
+    )
+
+    _client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = Client(
+                version='auto',
+                **kwargs_from_env(assert_hostname=self.tls_assert_hostname)
+            )
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client = value
 
     def build(self, tag=None, display=True, rm=True):
         """
