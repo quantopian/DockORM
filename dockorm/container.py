@@ -28,7 +28,8 @@ from traitlets import (
     List,
     Unicode,
     TraitError,
-    Bool,
+    Enum,
+    Union,
 )
 
 from .py3compat_utils import strict_map
@@ -211,10 +212,11 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    tls_assert_hostname = Bool(
-        None, allow_none=True, config=True,
-        help="If True, will verify hostname of docker daemon",
-    )
+    tls_assert_hostname = Union([
+        Unicode(None, allow_none=True, config=True,
+                help="If False, do not verify hostname of docker daemon"),
+        Enum([False]),
+    ])
 
     _client = None
 
