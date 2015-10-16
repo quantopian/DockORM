@@ -58,6 +58,15 @@ def scalar(l):
     return l[0]
 
 
+class UnicodeOrFalse(Unicode):
+    info_text = 'a unicode string or False'
+
+    def validate(self, obj, value):
+        if value is False:
+            return value
+        return super(UnicodeOrFalse, self).validate(obj, value)
+
+
 class Container(HasTraits):
     """
     A specification for creation of a container.
@@ -210,7 +219,25 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    client = Instance(Client, kw=kwargs_from_env(), allow_none=True)
+    tls_assert_hostname = UnicodeOrFalse(
+        default_value=None, allow_none=True, config=True,
+        help="If False, do not verify hostname of docker daemon",
+    )
+
+    _client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = Client(
+                version='auto',
+                **kwargs_from_env(assert_hostname=self.tls_assert_hostname)
+            )
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client = value
 
     def build(self, tag=None, display=True, rm=True):
         """

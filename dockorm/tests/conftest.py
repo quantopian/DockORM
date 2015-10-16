@@ -17,7 +17,7 @@ def clean_test_images(request):
     Automatically clear all test images after each test run.
     """
     def cleanup():
-        client = Client(**kwargs_from_env())
+        client = Client(version='auto', **kwargs_from_env())
         test_images = client.images(TEST_ORG + "/*")
         for image in test_images:
             client.remove_image(image)
