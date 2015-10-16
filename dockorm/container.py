@@ -28,8 +28,6 @@ from traitlets import (
     List,
     Unicode,
     TraitError,
-    Enum,
-    Union,
 )
 
 from .py3compat_utils import strict_map
@@ -58,6 +56,15 @@ def scalar(l):
     """
     assert len(l) == 1
     return l[0]
+
+
+class UnicodeOrFalse(Unicode):
+    info_text = 'a unicode string or False'
+
+    def validate(self, obj, value):
+        if value is False:
+            return value
+        return super(UnicodeOrFalse, self).validate(obj, value)
 
 
 class Container(HasTraits):
@@ -212,11 +219,10 @@ class Container(HasTraits):
     # Either(Instance(str), List(Instance(str)))
     command = Any()
 
-    tls_assert_hostname = Union([
-        Unicode(None, allow_none=True, config=True,
-                help="If False, do not verify hostname of docker daemon"),
-        Enum([False]),
-    ])
+    tls_assert_hostname = UnicodeOrFalse(
+        default_value=None, allow_none=True, config=True,
+        help="If False, do not verify hostname of docker daemon",
+    )
 
     _client = None
 
