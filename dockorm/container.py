@@ -8,10 +8,7 @@ import json
 from subprocess import call
 
 from docker import Client
-from docker.utils import (
-    create_host_config,
-    kwargs_from_env,
-)
+from docker.utils import kwargs_from_env
 from six import (
     iteritems,
     itervalues,
@@ -190,7 +187,7 @@ class Container(HasTraits):
     )
 
     def _make_host_config(self):
-        return create_host_config(
+        return self.client.create_host_config(
             binds=self.volume_binds,
             port_bindings=self.port_bindings,
             network_mode=self.network_mode,
