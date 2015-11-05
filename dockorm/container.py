@@ -103,8 +103,9 @@ class Container(HasTraits):
         return {}
 
     volumes_readwrite = Dict()
-
     volumes_readonly = Dict()
+    volumes_no_bind = []
+    volumes_from = None
 
     @property
     def volume_mount_points(self):
@@ -192,6 +193,7 @@ class Container(HasTraits):
             port_bindings=self.port_bindings,
             network_mode=self.network_mode,
             extra_hosts=self.extra_hosts,
+            volumes_from=self.volumes_from,
             # TODO: Support all of these.
             lxc_conf=None,
             publish_all_ports=False,
@@ -199,7 +201,6 @@ class Container(HasTraits):
             privileged=False,
             dns=None,
             dns_search=None,
-            volumes_from=None,
             restart_policy=None,
             cap_add=None,
             cap_drop=None,
@@ -268,7 +269,7 @@ class Container(HasTraits):
             self.full_imagename(tag),
             name=self.name,
             ports=self.open_container_ports,
-            volumes=self.volume_mount_points,
+            volumes=self.volume_mount_points + self.volumes_no_bind,
             detach=not attach,
             stdin_open=attach,
             tty=attach,
