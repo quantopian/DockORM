@@ -103,7 +103,9 @@ class Container(HasTraits):
         return {}
 
     volumes_readwrite = Dict()
+
     volumes_readonly = Dict()
+
     volumes_no_bind = List()
 
     @property
