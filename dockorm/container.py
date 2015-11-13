@@ -120,6 +120,7 @@ class Container(HasTraits):
             chain(
                 itervalues(self.volumes_readwrite),
                 itervalues(self.volumes_readonly),
+                volumes_no_bind,
             )
         )
 
@@ -268,7 +269,7 @@ class Container(HasTraits):
             self.full_imagename(tag),
             name=self.name,
             ports=self.open_container_ports,
-            volumes=self.volume_mount_points + self.volumes_no_bind,
+            volumes=self.volume_mount_points,
             detach=not attach,
             stdin_open=attach,
             tty=attach,
