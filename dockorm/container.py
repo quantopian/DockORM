@@ -122,7 +122,7 @@ class Container(HasTraits):
             chain(
                 itervalues(self.volumes_readwrite),
                 itervalues(self.volumes_readonly),
-                volumes_no_bind,
+                self.volumes_no_bind,
             )
         )
 
