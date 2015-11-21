@@ -106,6 +106,8 @@ class Container(HasTraits):
 
     volumes_readonly = Dict()
 
+    volumes_no_bind = List()
+
     @property
     def volume_mount_points(self):
         """
@@ -120,6 +122,7 @@ class Container(HasTraits):
             chain(
                 itervalues(self.volumes_readwrite),
                 itervalues(self.volumes_readonly),
+                self.volumes_no_bind,
             )
         )
 
