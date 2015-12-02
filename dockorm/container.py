@@ -100,7 +100,7 @@ class Container(HasTraits):
     links = List(Instance(__name__ + '.Link'))
 
     def format_links(self):
-        return {}
+        return [(link.container, link.alias) for link in self.links]
 
     volumes_readwrite = Dict()
 
@@ -198,7 +198,7 @@ class Container(HasTraits):
             # TODO: Support all of these.
             lxc_conf=None,
             publish_all_ports=False,
-            links=None,
+            links=self.format_links() or None,
             privileged=False,
             dns=None,
             dns_search=None,
@@ -373,5 +373,5 @@ class Link(HasTraits):
     """
     A link between containers.
     """
-    container = Instance(Container)
+    container = Unicode()
     alias = Unicode()
