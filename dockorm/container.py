@@ -195,12 +195,19 @@ class Container(HasTraits):
         help="Extra entries for container /etc/hosts",
     )
 
+    volumes_from = List(
+        trait=Unicode(),
+        default_value=[],
+        help="Container IDs from which to mount volumes."
+    )
+
     def _make_host_config(self):
         return self.client.create_host_config(
             binds=self.volume_binds,
             port_bindings=self.port_bindings,
             network_mode=self.network_mode,
             extra_hosts=self.extra_hosts,
+            volumes_from=self.volumes_from,
             # TODO: Support all of these.
             lxc_conf=None,
             publish_all_ports=False,
@@ -208,7 +215,6 @@ class Container(HasTraits):
             privileged=False,
             dns=None,
             dns_search=None,
-            volumes_from=None,
             restart_policy=None,
             cap_add=None,
             cap_drop=None,
