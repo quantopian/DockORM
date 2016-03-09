@@ -69,6 +69,12 @@ class Container(HasTraits):
     A specification for creation of a container.
     """
 
+    def __str__(self):
+        return (
+            "Container(name={self.name!r}, "
+            "image={self.image!r})".format(self=self)
+        )
+
     organization = Unicode()
 
     def _organization_changed(self, name, old, new):
