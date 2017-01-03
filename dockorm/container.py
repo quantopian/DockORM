@@ -34,7 +34,7 @@ def print_build_output(build_output):
     success = True
     for raw_messages in build_output:
         for raw_message in raw_messages.splitlines():
-            message = json.loads(raw_message.decode('ascii'))
+            message = json.loads(raw_message.decode('utf-8'))
             if 'stream' in message:
                 print(message['stream'], end="")
             elif 'status' in message:
