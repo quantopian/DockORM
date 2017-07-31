@@ -42,6 +42,8 @@ def print_build_output(build_output):
             elif 'error' in message:
                 success = False
                 print(message['error'])
+            elif 'aux' in message:
+                continue
             else:
                 success = False
                 print("Unknown message during build: %s" % message)
