@@ -7,7 +7,7 @@ from itertools import chain
 import json
 from subprocess import call
 
-from docker import Client
+from docker import APIClient as Client
 from docker.utils import kwargs_from_env
 from six import (
     iteritems,

@@ -1,7 +1,7 @@
 # encoding: utf-8
 from __future__ import unicode_literals
 
-from docker import Client
+from docker import APIClient as Client
 from docker.utils import kwargs_from_env
 from pytest import fixture
 
