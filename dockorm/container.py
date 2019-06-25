@@ -147,11 +147,11 @@ class Container(HasTraits):
         }
         """
         volumes = {
-            key: {'bind': value, 'ro': False}
+            key: {'bind': value, 'mode': 'rw'}
             for key, value in iteritems(self.volumes_readwrite)
         }
         ro_volumes = {
-            key: {'bind': value, 'ro': True}
+            key: {'bind': value, 'mode': 'ro'}
             for key, value in iteritems(self.volumes_readonly)
         }
         volumes.update(ro_volumes)
@@ -176,12 +176,10 @@ class Container(HasTraits):
     def open_container_ports(self):
         out = []
         for key in self.ports:
-            if isinstance(key, int):
+            if isinstance(key, (int, tuple)):
                 to_append = key
             elif isinstance(key, string_types):
                 to_append = int(key)
-            elif isinstance(key, tuple):
-                to_append = key[0]
             else:
                 raise TypeError("Couldn't understand port key %s" % key)
             out.append(to_append)
@@ -332,10 +330,11 @@ class Container(HasTraits):
         Purge all containers of this type.
         """
         for container in self.instances():
-            if stop_first:
-                self.client.stop(container)
-            else:
-                self.client.kill(container)
+            if container['State'] != 'exited':
+                if stop_first:
+                    self.client.stop(container)
+                else:
+                    self.client.kill(container)
             self.client.remove_container(
                 container,
                 v=remove_volumes,

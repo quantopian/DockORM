@@ -124,14 +124,41 @@ def test_container_purge(busybox):
 
 def test_container_volumes_rw(busybox):
     volume_loc = volume('foo.txt')
-    busybox.volumes_readwrite = {volume_loc: 'bar.txt'}
+    busybox.volumes_readwrite = {volume_loc: '/bar.txt'}
     busybox.run(['cat', 'bar.txt'])
     details = checked_join(busybox)
     validate_dict(
         details,
         {
-            'Volumes': {'bar.txt': volume_loc},
-            'VolumesRW': {'bar.txt': True}
+            'Mounts': [{
+                'Source': volume_loc,
+                'Destination': '/bar.txt',
+                'Mode': 'rw',
+                'RW': True,
+                'Type': 'bind',
+                'Propagation': 'rprivate',
+            }],
+        }
+    )
+    assert_in_logs(busybox, b'This is a volume!\n')
+
+
+def test_container_volumes_ro(busybox):
+    volume_loc = volume('foo.txt')
+    busybox.volumes_readonly = {volume_loc: '/bar.txt'}
+    busybox.run(['cat', 'bar.txt'])
+    details = checked_join(busybox)
+    validate_dict(
+        details,
+        {
+            'Mounts': [{
+                'Source': volume_loc,
+                'Destination': '/bar.txt',
+                'Mode': 'ro',
+                'RW': False,
+                'Type': 'bind',
+                'Propagation': 'rprivate',
+            }],
         }
     )
     assert_in_logs(busybox, b'This is a volume!\n')
@@ -176,12 +203,11 @@ def test_container_ports(busybox):
             'PublicPort': 'UNKNOWN',  # Gets filled in below.
         },
         {
-            'IP': '',
+            'IP': '0.0.0.0',
             'PrivatePort': 3333,
             'PublicPort': 3334,
             'Type': 'udp',
         },
-        {'PrivatePort': 3333, 'Type': 'tcp'},
         {
             'IP': '127.0.0.1',
             'PrivatePort': 4444,
@@ -213,26 +239,10 @@ def test_container_ports(busybox):
     expected_network_ports = {
         '1111/tcp': [{'HostIp': '0.0.0.0', 'HostPort': '1112'}],
         '2222/tcp': [{'HostIp': '0.0.0.0', 'HostPort': str(host_port_2222)}],
-        '3333/tcp': None,
-        '3333/udp': [{'HostIp': '', 'HostPort': '3334'}],
+        '3333/udp': [{'HostIp': '0.0.0.0', 'HostPort': '3334'}],
         '4444/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '4445'}],
     }
     assert details['NetworkSettings']['Ports'] == expected_network_ports
-
-
-def test_container_volumes_ro(busybox):
-    volume_loc = volume('foo.txt')
-    busybox.volumes_readonly = {volume_loc: 'bar.txt'}
-    busybox.run(['cat', 'bar.txt'])
-    details = checked_join(busybox)
-    validate_dict(
-        details,
-        {
-            'Volumes': {'bar.txt': volume_loc},
-            'VolumesRW': {'bar.txt': False}
-        }
-    )
-    assert_in_logs(busybox, b'This is a volume!\n')
 
 
 def test_container_build_remove(busybox, capsys):
@@ -243,15 +253,16 @@ def test_container_build_remove(busybox, capsys):
     stdout, stderr = capsys.readouterr()
     assert stderr == ''
     stdout = stdout.splitlines()
-    assert len(stdout) == 8
-    assert stdout[0] == 'Step 0 : FROM busybox'
+    assert len(stdout) == 9
+    assert stdout[0] == 'Step 1/2 : FROM busybox'
     assert stdout[1].startswith(' --->')
-    assert stdout[2] == 'Step 1 : RUN echo testing'
+    assert stdout[2] == 'Step 2/2 : RUN echo testing'
     assert stdout[3].startswith(' ---> Running in')
     assert stdout[4] == 'testing'
-    assert stdout[5].startswith(' --->')
-    assert stdout[6].startswith('Removing intermediate container')
+    assert stdout[5].startswith('Removing intermediate container')
+    assert stdout[6].startswith(' --->')
     assert stdout[7].startswith('Successfully built')
+    assert stdout[8].startswith('Successfully tagged')
 
     image = scalar(busybox.images())
     assert image['RepoTags'] == [
@@ -268,17 +279,13 @@ def test_build_failed_pull(capsys):
     stdout, stderr = capsys.readouterr()
     assert stderr == ''
     stdout = stdout.splitlines()
-    assert len(stdout) == 3
+    assert len(stdout) == 2
     assert(
         stdout[0] ==
-        "Step 0 : FROM dockorm_fake_org/dockorm_fake_image:dockorm_fake_tag"
+        "Step 1/1 : FROM dockorm_fake_org/dockorm_fake_image:dockorm_fake_tag"
     )
     assert (
         stdout[1] ==
-        'Pulling repository dockorm_fake_org/dockorm_fake_image'
-    )
-    assert (
-        stdout[2] ==
-        "Error: image dockorm_fake_org/dockorm_fake_image:dockorm_fake_tag "
-        "not found"
+        "pull access denied for dockorm_fake_org/dockorm_fake_image, "
+        "repository does not exist or may require 'docker login'"
     )
