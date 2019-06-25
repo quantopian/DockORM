@@ -3,6 +3,7 @@ Utilities for dockorm tests.
 """
 # encoding: utf-8
 from __future__ import unicode_literals
+from os import getenv
 from os.path import (
     dirname,
     join,
@@ -54,7 +55,7 @@ def volume(path):
     Path to a file relative to the test volumes directory.
     """
     return join(
-        dirname(__file__),
+        getenv('DOCKORM_TESTS_DIR') or dirname(__file__),
         'volumes',
         path,
     )
