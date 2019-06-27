@@ -1,6 +1,6 @@
 argparse>=1.2.1
 backports.ssl-match-hostname>=3.4.0.2
-docker-py>=1.2.2
+docker>=2.0.0
 execnet>=1.2.0
 pep8>=1.5.7
 py>=1.4.26
