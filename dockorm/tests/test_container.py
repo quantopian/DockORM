@@ -287,5 +287,6 @@ def test_build_failed_pull(capsys):
     assert (
         stdout[1] ==
         "pull access denied for dockorm_fake_org/dockorm_fake_image, "
-        "repository does not exist or may require 'docker login'"
+        "repository does not exist or may require 'docker login': "
+        "denied: requested access to the resource is denied"
     )
