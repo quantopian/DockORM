@@ -15,14 +15,6 @@
 # limitations under the License.
 from setuptools import setup
 
-install_requires = []
-with open('requirements.txt') as f:
-    for line in f.readlines():
-        req = line.strip()
-        if not req or req.startswith(('-e', '#')):
-            continue
-        install_requires.append(req)
-
 
 setup_args = dict(
     name='DockORM',
@@ -42,7 +34,17 @@ setup_args = dict(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
     ],
-    install_requires=install_requires,
+    install_requires=[
+        "docker>=2.0.0",
+        "six>=1.8.0",
+        "traitlets>=4.0.0",
+    ],
+    extras_require={
+        "test": [
+            "pytest>=2.6.4",
+            "pytest-pep8>=1.0.6",
+        ],
+    },
     url="https://github.com/quantopian/dockrm",
 )
 
